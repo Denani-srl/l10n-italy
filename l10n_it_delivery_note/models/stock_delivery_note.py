@@ -564,7 +564,8 @@ class StockDeliveryNote(models.Model):
         return True
 
     def ensure_annulability(self):
-        if self.mapped("invoice_ids"):
+        # The warehouse users may have no access to the invoices
+        if self.sudo().mapped("invoice_ids"):
             raise UserError(
                 self.env._(
                     "You cannot cancel this delivery note. "

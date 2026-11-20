@@ -117,6 +117,8 @@ class StockDeliveryNoteCreateWizard(models.TransientModel):
 
         self.selected_picking_ids.write({"delivery_note_id": delivery_note.id})
         if sale_order_id:
+            # The warehouse users may have no access to the invoices
+            sale_order_id = sale_order_id.sudo()
             sale_order_id._assign_delivery_notes_invoices(sale_order_id.invoice_ids.ids)
 
         return delivery_note.goto()

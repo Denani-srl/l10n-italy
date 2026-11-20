@@ -54,6 +54,39 @@ class StockDeliveryNote(StockDeliveryNoteCommon):
         dn.confirm()
         self.assertTrue(picking_backorder.delivery_note_id)
 
+    def test_warehouse_user_without_invoicing_access(self):
+        """A warehouse user without any access to the invoices
+        creates, confirms and cancels the delivery note of a sales order."""
+        sales_order = self.create_sales_order([self.large_desk_line])
+        sales_order.action_confirm()
+        picking = sales_order.picking_ids
+        picking.move_ids.quantity = 1
+        picking.button_validate()
+        warehouse_user = new_test_user(
+            self.env,
+            login="warehouse_no_invoicing",
+            groups="stock.group_stock_user",
+        )
+        self.assertFalse(
+            self.env["account.move"].with_user(warehouse_user).has_access("read")
+        )
+        # Nothing read by the other users stays in the cache
+        self.env.flush_all()
+        self.env.invalidate_all()
+        user_env = self.env(user=warehouse_user)
+        user_picking = user_env["stock.picking"].browse(picking.id)
+
+        Form.from_action(
+            user_env, user_picking.action_delivery_note_create()
+        ).save().confirm()
+        delivery_note = user_picking.delivery_note_id
+        self.assertTrue(delivery_note)
+
+        delivery_note.action_confirm()
+        self.assertEqual(delivery_note.state, "confirm")
+        delivery_note.action_cancel()
+        self.assertEqual(delivery_note.state, "cancel")
+
     # ⇒ "Consegna senza ordine"
     def test_delivery_without_so(self):
         #
